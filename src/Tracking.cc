@@ -36,6 +36,8 @@
 #include<iostream>
 
 #include<mutex>
+#include <cstdlib>
+#include <unistd.h>
 
 
 using namespace std;
@@ -258,7 +260,10 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp)
         mCurrentFrame = Frame(mImGray,timestamp,mpIniORBextractor,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
     else
         mCurrentFrame = Frame(mImGray,timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
-
+//    cv::Mat key_image;
+//    cv::drawKeypoints( mImGray, mCurrentFrame.mvKeys, key_image, cv::Scalar::all(-1), cv::DrawMatchesFlags::DEFAULT);
+//    cv::imshow("WithKeypoint", key_image);
+//    cv::waitKey(0);
     Track();
 
     return mCurrentFrame.mTcw.clone();
@@ -627,6 +632,7 @@ void Tracking::MonocularInitialization()
             cv::Mat Tcw = cv::Mat::eye(4,4,CV_32F);
             Rcw.copyTo(Tcw.rowRange(0,3).colRange(0,3));
             tcw.copyTo(Tcw.rowRange(0,3).col(3));
+//            std::cout << "Tcw:\n" << Tcw << std::endl;
             mCurrentFrame.SetPose(Tcw);
 
             CreateInitialMapMonocular();
@@ -654,7 +660,7 @@ void Tracking::CreateInitialMapMonocular()
         if(mvIniMatches[i]<0)
             continue;
 
-        //Create MapPoint.
+        //Create MapPoint. The position is under current frame
         cv::Mat worldPos(mvIniP3D[i]);
 
         MapPoint* pMP = new MapPoint(worldPos,pKFcur,mpMap);
@@ -665,6 +671,7 @@ void Tracking::CreateInitialMapMonocular()
         pMP->AddObservation(pKFini,i);
         pMP->AddObservation(pKFcur,mvIniMatches[i]);
 
+        // When added new observation, this landmark has to been updated
         pMP->ComputeDistinctiveDescriptors();
         pMP->UpdateNormalAndDepth();
 
@@ -689,6 +696,7 @@ void Tracking::CreateInitialMapMonocular()
     float medianDepth = pKFini->ComputeSceneMedianDepth(2);
     float invMedianDepth = 1.0f/medianDepth;
 
+    // At least more than 100 keypoints have been observe(more than or equal 1 frame observe)
     if(medianDepth<0 || pKFcur->TrackedMapPoints(1)<100)
     {
         cout << "Wrong initialization, reseting..." << endl;
@@ -738,6 +746,7 @@ void Tracking::CreateInitialMapMonocular()
 
 void Tracking::CheckReplacedInLastFrame()
 {
+    // Update landmark if the exist one need to be replaced
     for(int i =0; i<mLastFrame.N; i++)
     {
         MapPoint* pMP = mLastFrame.mvpMapPoints[i];
@@ -771,8 +780,10 @@ bool Tracking::TrackReferenceKeyFrame()
 
     mCurrentFrame.mvpMapPoints = vpMapPointMatches;
     mCurrentFrame.SetPose(mLastFrame.mTcw);
+    std::cout << "Before optimization:\n" << mCurrentFrame.mTcw << std::endl;
 
     Optimizer::PoseOptimization(&mCurrentFrame);
+    std::cout << "After optimization:\n" << mCurrentFrame.mTcw << std::endl;
 
     // Discard outliers
     int nmatchesMap = 0;

@@ -27,7 +27,7 @@
 
 #include "Thirdparty/DBoW2/DBoW2/FeatureVector.h"
 
-#include<stdint-gcc.h>
+//#include<stdint-gcc.h>
 
 using namespace std;
 
@@ -465,6 +465,7 @@ int ORBmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f
                     vnMatches12[vnMatches21[bestIdx2]]=-1;
                     nmatches--;
                 }
+                // Update Match, replace the previous match
                 vnMatches12[i1]=bestIdx2;
                 vnMatches21[bestIdx2]=i1;
                 vMatchedDistance[bestIdx2]=bestDist;
@@ -512,10 +513,14 @@ int ORBmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f
     }
 
     //Update prev matched
+    unsigned int size_matches = 0;
     for(size_t i1=0, iend1=vnMatches12.size(); i1<iend1; i1++)
         if(vnMatches12[i1]>=0)
+        {
             vbPrevMatched[i1]=F2.mvKeysUn[vnMatches12[i1]].pt;
-
+            ++size_matches;
+        }
+    std::cout << "Matched size: " << size_matches << std::endl;
     return nmatches;
 }
 

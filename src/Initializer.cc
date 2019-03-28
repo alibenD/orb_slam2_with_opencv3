@@ -26,9 +26,13 @@
 #include "ORBmatcher.h"
 
 #include<thread>
+#include<fstream>
+#include <chrono>
+#include <iostream>
 
 namespace ORB_SLAM2
 {
+
 
 Initializer::Initializer(const Frame &ReferenceFrame, float sigma, int iterations)
 {
@@ -78,7 +82,7 @@ bool Initializer::Initialize(const Frame &CurrentFrame, const vector<int> &vMatc
     mvSets = vector< vector<size_t> >(mMaxIterations,vector<size_t>(8,0));
 
     DUtils::Random::SeedRandOnce(0);
-
+    // Ransec select candidate points
     for(int it=0; it<mMaxIterations; it++)
     {
         vAvailableIndices = vAllIndices;
@@ -107,6 +111,8 @@ bool Initializer::Initialize(const Frame &CurrentFrame, const vector<int> &vMatc
     // Wait until both threads have finished
     threadH.join();
     threadF.join();
+//    FindHomography(vbMatchesInliersH, SH, H);
+//    FindFundamental(vbMatchesInliersF, SF, F);
 
     // Compute ratio of scores
     float RH = SH/(SH+SF);
@@ -115,7 +121,12 @@ bool Initializer::Initialize(const Frame &CurrentFrame, const vector<int> &vMatc
     if(RH>0.40)
         return ReconstructH(vbMatchesInliersH,H,mK,R21,t21,vP3D,vbTriangulated,1.0,50);
     else //if(pF_HF>0.6)
-        return ReconstructF(vbMatchesInliersF,F,mK,R21,t21,vP3D,vbTriangulated,1.0,50);
+    {
+        // Timer
+
+        auto result = ReconstructF(vbMatchesInliersF,F,mK,R21,t21,vP3D,vbTriangulated,1.0,50);
+        return result;
+    }
 
     return false;
 }
@@ -131,6 +142,8 @@ void Initializer::FindHomography(vector<bool> &vbMatchesInliers, float &score, c
     cv::Mat T1, T2;
     Normalize(mvKeys1,vPn1, T1);
     Normalize(mvKeys2,vPn2, T2);
+//    std::cout << "T1: \n" << T1 << std::endl;
+//    std::cout << "T2: \n" << T2 << std::endl;
     cv::Mat T2inv = T2.inv();
 
     // Best Results variables
@@ -143,8 +156,63 @@ void Initializer::FindHomography(vector<bool> &vbMatchesInliers, float &score, c
     cv::Mat H21i, H12i;
     vector<bool> vbCurrentInliers(N,false);
     float currentScore;
-
     // Perform all RANSAC iterations and save the solution with highest score
+//    WriteBinaryData()
+//    std::ofstream file_keys1("/home/aliben/keys1.txt");
+//    std::ofstream file_keys2("/home/aliben/keys2.txt");
+//    file_keys1 << mvKeys1.size() << std::endl;
+//    for(auto idx=0; idx<mvKeys1.size(); ++idx)
+//    {
+//        file_keys1 << mvKeys1[idx].pt.x << " "
+//                   << mvKeys1[idx].pt.y << " "
+//                   << mvKeys1[idx].size << " "
+//                   << mvKeys1[idx].angle << " "
+//                   << mvKeys1[idx].response << "\t"
+//                   << vPn1[idx].x << " "
+//                   << vPn1[idx].y << " "
+//                   << mvKeys1[idx].size
+//                   << std::endl;
+//    }
+//    for(int i=0; i<T1.rows; ++i)
+//    {
+//        for(int j=0; j<T1.cols; ++j)
+//        {
+//            file_keys1 << T1.at<float>(i,j) << "\t";
+//        }
+//        file_keys1 << std::endl;
+//    }
+//
+//    file_keys2 << mvKeys2.size() << std::endl;
+//    for(auto idx=0; idx<mvKeys2.size(); ++idx)
+//    {
+//        file_keys2 << mvKeys2[idx].pt.x << " "
+//                   << mvKeys2[idx].pt.y << " "
+//                   << mvKeys2[idx].size << " "
+//                   << mvKeys2[idx].angle << " "
+//                   << mvKeys2[idx].response << "\t"
+//                   << vPn2[idx].x << " "
+//                   << vPn2[idx].y << " "
+//                   << mvKeys2[idx].size
+//                   << std::endl;
+//    }
+//    for(int i=0; i<T2.rows; ++i)
+//    {
+//        for(int j=0; j<T2.cols; ++j)
+//        {
+//            file_keys2 << T2.at<float>(i,j) << "\t";
+//        }
+//        file_keys2 << std::endl;
+//    }
+//
+//    file_keys1.close();
+//    file_keys2.close();
+////    std::ofstream file_normalized;
+////    std::ofstream file_origin;
+////    file_normalized.open("/home/aliben/date_computeH21_normalized.bin", std::ios_base::out | std::ios_base::binary);
+////    file_origin.open("/home/aliben/date_computeH21_origin.bin", std::ios_base::out | std::ios_base::binary);
+//    std::ofstream file_ransec_set;
+//    file_ransec_set.open("/home/aliben/ransec_set.txt");
+//    file_ransec_set << mMaxIterations << std::endl;
     for(int it=0; it<mMaxIterations; it++)
     {
         // Select a minimum set
@@ -154,11 +222,36 @@ void Initializer::FindHomography(vector<bool> &vbMatchesInliers, float &score, c
 
             vPn1i[j] = vPn1[mvMatches12[idx].first];
             vPn2i[j] = vPn2[mvMatches12[idx].second];
+//            file_ransec_set << it << " "
+//                            << j  << " "
+//                            << mvMatches12[idx].first << " "
+//                            << mvMatches12[idx].second
+//                            << std::endl;
+////            WriteBinaryData(mvKeys1[mvMatches12[idx].first].pt.x, file_origin);
+////            WriteBinaryData(mvKeys1[mvMatches12[idx].first].pt.y, file_origin);
+////            WriteBinaryData(mvKeys2[mvMatches12[idx].second].pt.x, file_origin);
+////            WriteBinaryData(mvKeys2[mvMatches12[idx].second].pt.y, file_origin);
+////            WriteBinaryData(vPn1i[j].x, file_normalized);
+////            WriteBinaryData(vPn1i[j].y, file_normalized);
+////            WriteBinaryData(vPn2i[j].x, file_normalized);
+////            WriteBinaryData(vPn2i[j].y, file_normalized);
         }
-
+//        file_origin.close();
+//        file_normalized.close();
         cv::Mat Hn = ComputeH21(vPn1i,vPn2i);
+//        for(int i=0; i<Hn.rows; ++i)
+//        {
+//            for(int j=0; j<Hn.cols; ++j)
+//            {
+//                file_ransec_set << Hn.at<float>(i,j) << "\t";
+//            }
+//            file_ransec_set << std::endl;
+//        }
         H21i = T2inv*Hn*T1;
         H12i = H21i.inv();
+//        std::cout << "Hn\n" << Hn << std::endl;
+//        std::cout << "H12-" << it << ": \n" << H12i << std::endl;
+//        std::cout << "H21-" << it << ": \n" << H21i << std::endl;
 
         currentScore = CheckHomography(H21i, H12i, vbCurrentInliers, mSigma);
 
@@ -169,6 +262,7 @@ void Initializer::FindHomography(vector<bool> &vbMatchesInliers, float &score, c
             score = currentScore;
         }
     }
+//    file_ransec_set.close();
 }
 
 
@@ -257,7 +351,7 @@ cv::Mat Initializer::ComputeH21(const vector<cv::Point2f> &vP1, const vector<cv:
         A.at<float>(2*i+1,8) = -u2;
 
     }
-
+    std::cout << "A*H_vect = 0:\nA:\n" << A << std::endl;
     cv::Mat u,w,vt;
 
     cv::SVDecomp(A,w,u,vt,cv::SVD::MODIFY_A | cv::SVD::FULL_UV);
@@ -470,6 +564,7 @@ float Initializer::CheckFundamental(const cv::Mat &F21, vector<bool> &vbMatchesI
 bool Initializer::ReconstructF(vector<bool> &vbMatchesInliers, cv::Mat &F21, cv::Mat &K,
                             cv::Mat &R21, cv::Mat &t21, vector<cv::Point3f> &vP3D, vector<bool> &vbTriangulated, float minParallax, int minTriangulated)
 {
+
     int N=0;
     for(size_t i=0, iend = vbMatchesInliers.size() ; i<iend; i++)
         if(vbMatchesInliers[i])
@@ -733,6 +828,8 @@ bool Initializer::ReconstructH(vector<bool> &vbMatchesInliers, cv::Mat &H21, cv:
 
 void Initializer::Triangulate(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::Mat &P1, const cv::Mat &P2, cv::Mat &x3D)
 {
+
+
     cv::Mat A(4,4,CV_32F);
 
     A.row(0) = kp1.pt.x*P1.row(2)-P1.row(0);
@@ -744,6 +841,10 @@ void Initializer::Triangulate(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, 
     cv::SVD::compute(A,w,u,vt,cv::SVD::MODIFY_A| cv::SVD::FULL_UV);
     x3D = vt.row(3).t();
     x3D = x3D.rowRange(0,3)/x3D.at<float>(3);
+//    auto t_start = std::chrono::system_clock::now();
+//    auto t_end = std::chrono::system_clock::now();
+//    std::chrono::duration<double> t_diff = t_end - t_start;
+//    std::cout << "Time cost: " << t_diff.count() << std::endl;
 }
 
 void Initializer::Normalize(const vector<cv::KeyPoint> &vKeys, vector<cv::Point2f> &vNormalizedPoints, cv::Mat &T)
@@ -815,6 +916,7 @@ int Initializer::CheckRT(const cv::Mat &R, const cv::Mat &t, const vector<cv::Ke
     cv::Mat P1(3,4,CV_32F,cv::Scalar(0));
     K.copyTo(P1.rowRange(0,3).colRange(0,3));
 
+    // Origin in P1 coordinates
     cv::Mat O1 = cv::Mat::zeros(3,1,CV_32F);
 
     // Camera 2 Projection Matrix K[R|t]
@@ -822,7 +924,7 @@ int Initializer::CheckRT(const cv::Mat &R, const cv::Mat &t, const vector<cv::Ke
     R.copyTo(P2.rowRange(0,3).colRange(0,3));
     t.copyTo(P2.rowRange(0,3).col(3));
     P2 = K*P2;
-
+    // R, t is R21 t21.   so -R.t()*t is t12 and O2 is the position of origin of P1 on coordinates of P2
     cv::Mat O2 = -R.t()*t;
 
     int nGood=0;
@@ -845,16 +947,20 @@ int Initializer::CheckRT(const cv::Mat &R, const cv::Mat &t, const vector<cv::Ke
         }
 
         // Check parallax
+        // Normalized under the current frame, the position of p3DC1 is under map frame
         cv::Mat normal1 = p3dC1 - O1;
         float dist1 = cv::norm(normal1);
 
+        // Normalized under the map frame, O2 is TF from O2->O1
         cv::Mat normal2 = p3dC1 - O2;
         float dist2 = cv::norm(normal2);
 
+        // The angle diff from P1 to P2, if the angle_diff is more than threshold, just drop this point
         float cosParallax = normal1.dot(normal2)/(dist1*dist2);
 
+        // If the depth is negative, that means this hypothesis is false
         // Check depth in front of first camera (only if enough parallax, as "infinite" points can easily go to negative depth)
-        if(p3dC1.at<float>(2)<=0 && cosParallax<0.99998)
+        if(p3dC1.at<float>(2)<=0 && cosParallax<0.99998) // = 57.29 degree
             continue;
 
         // Check depth in front of second camera (only if enough parallax, as "infinite" points can easily go to negative depth)
@@ -897,6 +1003,7 @@ int Initializer::CheckRT(const cv::Mat &R, const cv::Mat &t, const vector<cv::Ke
     {
         sort(vCosParallax.begin(),vCosParallax.end());
 
+        // Get average of parallax
         size_t idx = min(50,int(vCosParallax.size()-1));
         parallax = acos(vCosParallax[idx])*180/CV_PI;
     }

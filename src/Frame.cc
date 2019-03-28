@@ -22,6 +22,8 @@
 #include "Converter.h"
 #include "ORBmatcher.h"
 #include <thread>
+#include "Initializer.h"
+
 
 namespace ORB_SLAM2
 {
@@ -189,6 +191,8 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
 
     // ORB extraction
     ExtractORB(0,imGray);
+//    cv::imshow("Take a look", imGray);
+//    cv::waitKey(0);
 
     N = mvKeys.size();
 
@@ -239,11 +243,13 @@ void Frame::AssignFeaturesToGrid()
         const cv::KeyPoint &kp = mvKeysUn[i];
 
         int nGridPosX, nGridPosY;
+//        cv::KeyPoint kp(842, 50, 31, 24.5380497, 146);
+//        cv::KeyPoint kp(832, 54, 31, 36.1879578, 143);
+//        cv::KeyPoint kp(68, 87, 31, 157.532959, 108);
         if(PosInGrid(kp,nGridPosX,nGridPosY))
             mGrid[nGridPosX][nGridPosY].push_back(i);
     }
 }
-
 void Frame::ExtractORB(int flag, const cv::Mat &im)
 {
     if(flag==0)
@@ -403,6 +409,8 @@ void Frame::ComputeBoW()
 
 void Frame::UndistortKeyPoints()
 {
+    std::cout << "Distort Coef:\n" << mDistCoef << std::endl
+              << "K:\n" << mK << std::endl;
     if(mDistCoef.at<float>(0)==0.0)
     {
         mvKeysUn=mvKeys;

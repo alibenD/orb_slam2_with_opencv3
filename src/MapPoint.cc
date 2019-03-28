@@ -350,7 +350,12 @@ void MapPoint::UpdateNormalAndDepth()
     for(map<KeyFrame*,size_t>::iterator mit=observations.begin(), mend=observations.end(); mit!=mend; mit++)
     {
         KeyFrame* pKF = mit->first;
+        // Attention: the translation of TF(for coordinates) is different from translation of a vector(for a point at certain coordinates)
+        // Owi is the position of Camera at the world coordinates
+        // This normal position of this landmark from all observers(average)
         cv::Mat Owi = pKF->GetCameraCenter();
+//        std::cout << "Owi:\n" << Owi << std::endl;
+        // O2->P vector
         cv::Mat normali = mWorldPos - Owi;
         normal = normal + normali/cv::norm(normali);
         n++;

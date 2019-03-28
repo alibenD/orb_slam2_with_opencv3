@@ -70,10 +70,15 @@ void KeyFrame::ComputeBoW()
 void KeyFrame::SetPose(const cv::Mat &Tcw_)
 {
     unique_lock<mutex> lock(mMutexPose);
+    // Tcw is the absolute Transformation
     Tcw_.copyTo(Tcw);
+    // Tcw is the absolute Rotation
     cv::Mat Rcw = Tcw.rowRange(0,3).colRange(0,3);
+    // Tcw is the absolute Translation
     cv::Mat tcw = Tcw.rowRange(0,3).col(3);
+    // Rotation from camera coordinate to world coordinate
     cv::Mat Rwc = Rcw.t();
+
     Ow = -Rwc*tcw;
 
     Twc = cv::Mat::eye(4,4,Tcw.type());
@@ -327,10 +332,12 @@ void KeyFrame::UpdateConnections()
     //In case no keyframe counter is over threshold add the one with maximum counter
     int nmax=0;
     KeyFrame* pKFmax=NULL;
+    // If covision(co-landmark seen) is more than 15
     int th = 15;
 
     vector<pair<int,KeyFrame*> > vPairs;
     vPairs.reserve(KFcounter.size());
+    // Find the covision frame(The one the most times)
     for(map<KeyFrame*,int>::iterator mit=KFcounter.begin(), mend=KFcounter.end(); mit!=mend; mit++)
     {
         if(mit->second>nmax)
@@ -345,6 +352,7 @@ void KeyFrame::UpdateConnections()
         }
     }
 
+    // If not satisfied covision frame, then renshouyixia
     if(vPairs.empty())
     {
         vPairs.push_back(make_pair(nmax,pKFmax));
@@ -357,6 +365,7 @@ void KeyFrame::UpdateConnections()
     for(size_t i=0; i<vPairs.size();i++)
     {
         lKFs.push_front(vPairs[i].second);
+        // The weight is the number of co-vision
         lWs.push_front(vPairs[i].first);
     }
 
@@ -644,6 +653,7 @@ float KeyFrame::ComputeSceneMedianDepth(const int q)
     vector<float> vDepths;
     vDepths.reserve(N);
     cv::Mat Rcw2 = Tcw_.row(2).colRange(0,3);
+//    std::cout << "Rcw2: \n" << Rcw2 << std::endl;
     Rcw2 = Rcw2.t();
     float zcw = Tcw_.at<float>(2,3);
     for(int i=0; i<N; i++)
@@ -656,6 +666,7 @@ float KeyFrame::ComputeSceneMedianDepth(const int q)
             vDepths.push_back(z);
         }
     }
+    // Get depth in this frame coordinate
 
     sort(vDepths.begin(),vDepths.end());
 

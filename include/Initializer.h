@@ -26,7 +26,21 @@
 
 namespace ORB_SLAM2
 {
+    template <typename T>
+    int WriteBinaryData(T& data, std::ofstream& file)
+    {
+        auto cast_data_pointer = reinterpret_cast<char*>(&data);
+        file.write(cast_data_pointer, sizeof(data));
+        return 0;
+    };
 
+    template <typename T>
+    int ReadBinaryData(T& data, std::ifstream& file)
+    {
+        auto cast_data_pointer = reinterpret_cast<char*>(&data);
+        file.read(cast_data_pointer, sizeof(data));
+        return 0;
+    };
 // THIS IS THE INITIALIZER FOR MONOCULAR SLAM. NOT USED IN THE STEREO OR RGBD CASE.
 class Initializer
 {
